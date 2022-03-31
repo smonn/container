@@ -1,6 +1,6 @@
 {
   "name": "@smonn/container",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0",
   "description": "Easy to use dependency injection container",
   "license": "MIT",
   "files": [
