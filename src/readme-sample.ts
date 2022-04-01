@@ -1,23 +1,4 @@
-# @smonn/container
-
-Easy to use dependency injection container. This is a simplified version to avoid fixed dependencies via decorators. It also always returns the same instance unless you explicitly ask for a new instance. Instances are lazily created, meaning nothing is created until you request an instance. TypeScript optional.
-
-## Install
-
-```sh
-npm install @smonn/container
-```
-
-```sh
-yarn add @smonn/container
-```
-
-## Usage
-
-Basic example usage. See more examples in the test file.
-
-```ts
-import { Container, createToken } from '@smonn/container';
+import { Container, createToken } from './index';
 
 // Interfaces are optional, but can help to ensure you depend on abstractions only.
 interface Greeter {
@@ -80,4 +61,3 @@ console.log(
     container.create(Tokens.shouter)
   ) === false
 );
-```

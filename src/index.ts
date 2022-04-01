@@ -10,11 +10,60 @@ export type Factory<T = unknown> = (container: Container) => T;
 export type Provider = (container: Container) => void;
 
 /**
+ * Used to identify the type of a factory.
+ */
+export interface Token<T = unknown> {
+  /**
+   * Name of the token.
+   */
+  name: string;
+
+  /**
+   * Type mapping for TypeScript to circumvent unused variable error.
+   * Do not access this property directly, it is always undefined.
+   * @ignore
+   * @private
+   */
+  type: T;
+}
+
+/**
+ * Private implementation of the `Token` interface.
+ * @private
+ * @ignore
+ */
+class TokenImpl<T = unknown> implements Token<T> {
+  #name: string;
+  #type: T;
+
+  constructor(name: string) {
+    this.#name = name;
+    this.#type = void 0 as unknown as T;
+  }
+
+  get name() {
+    return this.#name;
+  }
+
+  get type() {
+    return this.#type;
+  }
+}
+
+/**
+ * Helper function to create a token.
+ * @param name Name of the token.
+ */
+export function createToken<T = unknown>(name: string): Token<T> {
+  return new TokenImpl<T>(name);
+}
+
+/**
  * The container class.
  */
 export class Container {
-  #factories: Map<symbol, Factory> = new Map();
-  #instances: Map<symbol, unknown> = new Map();
+  #factories = new Map<Token, Factory>();
+  #instances = new Map<Token, unknown>();
 
   /**
    * Get the number of factories registered.
@@ -25,13 +74,13 @@ export class Container {
 
   /**
    * Set a factory for a key.
-   * @param key Unique identifier for the factory.
+   * @param token Unique identifier for the factory.
    * @param factory Factory function that returns a value.
    * @returns
    */
-  set<T>(key: symbol, factory: Factory<T>): Container {
-    this.#instances.delete(key);
-    this.#factories.set(key, factory);
+  set<T, F extends T>(token: Token<T>, factory: Factory<F>): Container {
+    this.#instances.delete(token);
+    this.#factories.set(token, factory);
     return this;
   }
 
@@ -47,39 +96,39 @@ export class Container {
 
   /**
    * Verifies if a factory has been registered for a given key.
-   * @param key Unique identifier for the instance.
+   * @param token Unique identifier for the instance.
    * @returns
    */
-  has(key: symbol): boolean {
-    return this.#factories.has(key);
+  has<T>(token: Token<T>): boolean {
+    return this.#factories.has(token);
   }
 
   /**
    * Get an instance of a key. Always returns the same instance.
    * Will create a new instance if one does not exist.
-   * @param key Unique identifier for the instance.
+   * @param token Unique identifier for the instance.
    * @returns
    */
-  get<T>(key: symbol): T {
-    if (this.#instances.has(key)) {
-      return this.#instances.get(key) as T;
+  get<T>(token: Token<T>): T {
+    if (this.#instances.has(token)) {
+      return this.#instances.get(token) as T;
     }
 
-    const instance = this.create<T>(key);
-    this.#instances.set(key, instance);
+    const instance = this.create(token);
+    this.#instances.set(token, instance);
     return instance;
   }
 
   /**
    * Get a instance of a key. Always returns a new instance.
-   * @param key Unique identifier for the instance.
+   * @param token Unique identifier for the instance.
    * @returns
    */
-  create<T>(key: symbol): T {
-    const factory = this.#factories.get(key);
+  create<T>(token: Token<T>): T {
+    const factory = this.#factories.get(token);
 
     if (!factory)
-      throw new Error(`No factory registered for key ${String(key)}`);
+      throw new Error(`No factory registered for key ${String(token)}`);
 
     const instance = factory(this);
     return instance as T;
@@ -87,11 +136,11 @@ export class Container {
 
   /**
    * Delete a factory for a key. Also deletes the instance if it exists.
-   * @param key Unique identifier for the instance.
+   * @param token Unique identifier for the instance.
    */
-  delete(key: symbol): boolean {
-    this.#instances.delete(key);
-    return this.#factories.delete(key);
+  delete<T>(token: Token<T>): boolean {
+    this.#instances.delete(token);
+    return this.#factories.delete(token);
   }
 
   /**
