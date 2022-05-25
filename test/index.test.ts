@@ -2,29 +2,37 @@ import { test } from 'uvu';
 import * as assert from 'uvu/assert';
 import { Container, createToken } from '../src';
 
-interface Foo {
+interface IFoo {
   send(): void;
 }
 
-interface Bar {
+interface IBar {
   notify(): void;
 }
 
+class Other {
+  ping() {
+    return 'pong';
+  }
+}
+
 const Tokens = {
-  foo: createToken<Foo>('foo'),
-  asyncFoo: createToken<Promise<Foo>>('asyncFoo'),
-  bar: createToken<Bar>('bar'),
+  foo: createToken<IFoo>('foo'),
+  asyncFoo: createToken<Promise<IFoo>>('asyncFoo'),
+  bar: createToken<IBar>('bar'),
   constant: createToken<string>('constant'),
+  other: createToken(Other),
+  simple: 'simple',
 } as const;
 
-class Foo implements Foo {
+class Foo implements IFoo {
   send() {
     // ...
   }
 }
 
-class Bar implements Bar {
-  constructor(private readonly foo: Foo) {}
+class Bar implements IBar {
+  constructor(private readonly foo: IFoo) {}
 
   notify() {
     this.foo.send();
@@ -44,10 +52,10 @@ test('create new container', () => {
   assert.type(container.size, 'number');
 });
 
-test('set factory and get value', () => {
+test('set factory and get literal value', () => {
   const container = new Container();
   const constant = 'constant';
-  container.set(Tokens.constant, () => constant);
+  container.set(Tokens.constant, constant);
   assert.equal(container.get(Tokens.constant), constant);
 });
 
@@ -64,6 +72,31 @@ test('always the same instance', () => {
   assert.ok(!Object.is(container.get(Tokens.foo), container.get(otherToken)));
   assert.ok(container.get(Tokens.foo) === container.get(Tokens.foo));
   assert.ok(container.get(Tokens.foo) !== new Foo());
+});
+
+test('token can be created from a class', () => {
+  const container = new Container();
+  container.set(Tokens.other, () => new Other());
+
+  assert.ok(container.get(Tokens.other) instanceof Other);
+  assert.is(container.get(Tokens.other).ping(), 'pong');
+});
+
+test('token has a name and type', () => {
+  assert.ok(Tokens.bar.name === 'bar');
+
+  // Type is not meant to be accessed
+  assert.throws(() => Tokens.bar.type);
+});
+
+test('a token can also be a string', () => {
+  const container = new Container();
+  container.set(Tokens.simple, 123);
+
+  // When using a string token, it's recommended to also explicitly set the
+  // type to ensure TypeScript can do its thing. Otherwise, the returned type
+  // will be `any`.
+  assert.is(container.get<number>(Tokens.simple), 123);
 });
 
 test('always get a new instance', () => {
@@ -112,7 +145,7 @@ test('configuring dependencies', () => {
 
 test('throws if no match is found', () => {
   const container = new Container();
-  const unknownToken = createToken<unknown>('unknown');
+  const unknownToken = createToken('unknown');
   assert.throws(() => container.get(unknownToken));
 });
 

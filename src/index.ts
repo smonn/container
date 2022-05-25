@@ -2,7 +2,7 @@
  * A factory for return a value of `T` type. Does not need to be an instance of
  * a class, can be primitive values too.
  */
-export type Factory<T = unknown> = (container: Container) => T;
+export type Factory<T = unknown> = T | ((container: Container) => T);
 
 /**
  * A provider can be used to register one or more factories.
@@ -20,7 +20,7 @@ export interface Token<T = unknown> {
 
   /**
    * Type mapping for TypeScript to circumvent unused variable error.
-   * Do not access this property directly, it is always undefined.
+   * Do not access this property directly, it will throw an error.
    * @ignore
    * @private
    */
@@ -34,19 +34,17 @@ export interface Token<T = unknown> {
  */
 class TokenImpl<T = unknown> implements Token<T> {
   #name: string;
-  #type: T;
 
   constructor(name: string) {
     this.#name = name;
-    this.#type = void 0 as unknown as T;
   }
 
   get name() {
     return this.#name;
   }
 
-  get type() {
-    return this.#type;
+  get type(): T {
+    throw new Error('type should not be accessed directly');
   }
 }
 
@@ -54,16 +52,18 @@ class TokenImpl<T = unknown> implements Token<T> {
  * Helper function to create a token.
  * @param name Name of the token.
  */
-export function createToken<T = unknown>(name: string): Token<T> {
-  return new TokenImpl<T>(name);
+export function createToken<T = unknown>(
+  name: string | (new () => T)
+): Token<T> {
+  return new TokenImpl<T>(typeof name === 'string' ? name : name.name);
 }
 
 /**
  * The container class.
  */
 export class Container {
-  #factories = new Map<Token, Factory>();
-  #instances = new Map<Token, unknown>();
+  #factories = new Map<string | Token, Factory>();
+  #instances = new Map<string | Token, unknown>();
 
   /**
    * Get the number of factories registered.
@@ -78,7 +78,10 @@ export class Container {
    * @param factory Factory function that returns a value.
    * @returns
    */
-  set<T, F extends T>(token: Token<T>, factory: Factory<F>): Container {
+  set<T = unknown, F extends T = T>(
+    token: string | Token<T>,
+    factory: Factory<F>
+  ): Container {
     this.#instances.delete(token);
     this.#factories.set(token, factory);
     return this;
@@ -99,7 +102,7 @@ export class Container {
    * @param token Unique identifier for the instance.
    * @returns
    */
-  has<T>(token: Token<T>): boolean {
+  has<T = unknown>(token: string | Token<T>): boolean {
     return this.#factories.has(token);
   }
 
@@ -109,7 +112,7 @@ export class Container {
    * @param token Unique identifier for the instance.
    * @returns
    */
-  get<T>(token: Token<T>): T {
+  get<T = unknown>(token: string | Token<T>): T {
     if (this.#instances.has(token)) {
       return this.#instances.get(token) as T;
     }
@@ -124,11 +127,13 @@ export class Container {
    * @param token Unique identifier for the instance.
    * @returns
    */
-  create<T>(token: Token<T>): T {
+  create<T = unknown>(token: string | Token<T>): T {
     const factory = this.#factories.get(token);
 
     if (!factory)
       throw new Error(`No factory registered for key ${String(token)}`);
+
+    if (typeof factory !== 'function') return factory as T;
 
     const instance = factory(this);
     return instance as T;
@@ -138,7 +143,7 @@ export class Container {
    * Delete a factory for a key. Also deletes the instance if it exists.
    * @param token Unique identifier for the instance.
    */
-  delete<T>(token: Token<T>): boolean {
+  delete<T = unknown>(token: string | Token<T>): boolean {
     this.#instances.delete(token);
     return this.#factories.delete(token);
   }

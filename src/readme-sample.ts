@@ -1,30 +1,44 @@
 import { Container, createToken } from './index';
 
 // Interfaces are optional, but can help to ensure you depend on abstractions only.
-interface Greeter {
+interface IGreeter {
   sayHello(): string;
 }
-interface Shouter {
+interface IShouter {
   shoutHello(): string;
+}
+
+class Other {
+  ping() {
+    return 'pong';
+  }
 }
 
 // It's recommended to assemble all tokens in one place for easier management.
 // Use the createToken utility to assist with typings.
 const Tokens = {
-  greeter: createToken<Greeter>('greeter'),
-  shouter: createToken<Shouter>('shouter'),
+  greeter: createToken<IGreeter>('greeter'),
+  shouter: createToken<IShouter>('shouter'),
   name: createToken<string>('name'),
+
+  // You can also rely on the class's name when creating a token. But be careful
+  // when using this method if you minify your code. Also note that this means
+  // you will depend on the class directly instead of an interface.
+  other: createToken(Other),
+
+  // Tokens can also be strings if you prefer.
+  simple: 'simple',
 } as const;
 
-class Greeter implements Greeter {
+class Greeter implements IGreeter {
   constructor(private readonly name: string) {}
 
   sayHello(): string {
     return `Hello, ${this.name}!`;
   }
 }
-class Shouter implements Shouter {
-  constructor(private readonly greeter: Greeter) {}
+class Shouter implements IShouter {
+  constructor(private readonly greeter: IGreeter) {}
 
   shoutHello(): string {
     return this.greeter.sayHello().toUpperCase();
@@ -36,9 +50,11 @@ class Shouter implements Shouter {
 // the token spec, explicitly declaring the generic type is not required.
 function provideModule(container: Container) {
   // Literal/basic values are allowed
-  container.set(Tokens.name, () => 'Joy');
+  container.set(Tokens.name, 'Joy');
   container.set(Tokens.greeter, (c) => new Greeter(c.get(Tokens.name)));
   container.set(Tokens.shouter, (c) => new Shouter(c.get(Tokens.greeter)));
+  container.set(Tokens.other, () => new Other());
+  container.set(Tokens.simple, 123);
 }
 
 const container = new Container();
@@ -61,3 +77,9 @@ console.log(
     container.create(Tokens.shouter)
   ) === false
 );
+
+console.log('ping', container.get(Tokens.other).ping());
+
+// Since the `simple` token is just a string, the default inferred type is
+// `any`. Therefore, you need to set the type explicitly, if desired.
+console.log('one-two-three', container.get<number>(Tokens.simple));
