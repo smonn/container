@@ -48,8 +48,7 @@
     "test:coverage": "jest --runInBand --coverage",
     "lint:scripts": "eslint . --ext .ts",
     "format:scripts": "prettier . --write",
-    "format": "npm run format:scripts && npm run format:styles",
-    "prepare": "husky install && husky add .husky/pre-commit 'npx lint-staged' && git add .husky/pre-commit"
+    "format": "npm run format:scripts && npm run format:styles"
   },
   "devDependencies": {
     "@tsconfig/node16-strictest-esm": "^1.0.3",
