@@ -1,42 +1,24 @@
 {
+  "extends": "@tsconfig/node16-strictest-esm/tsconfig.json",
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "newLine": "lf",
-    "noEmitOnError": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noUncheckedIndexedAccess": false,
-    "pretty": true,
-    "resolveJsonModule": false,
-    "stripInternal": true,
-    "useDefineForClassFields": false,
-    "forceConsistentCasingInFileNames": true,
-    "importHelpers": true,
-    "lib": [
-      "DOM",
-      "ES2019",
-      "ES2020.BigInt",
-      "ES2020.Promise",
-      "ES2020.String"
-    ],
-    "module": "ES2020",
+    "rootDir": "./src",
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
     "moduleResolution": "Node",
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "skipLibCheck": true,
-    "sourceMap": true,
     "strict": true,
-    "target": "ES2019"
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": false,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client", "node", "jest"]
   },
-  "include": [
-    "src",
-    "test"
-  ],
-  "ts-node": {
-    "compilerOptions": {
-      "module": "CommonJS"
-    }
-  }
+  "include": ["src"],
+  "exclude": ["**/*.test.ts", "node_modules", "test/**", ".history/**"]
 }

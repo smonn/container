@@ -1,23 +1,4 @@
-# @smonn/container
-
-Dependency injection container. Attempts to avoid fixed dependencies via decorators. It also always returns the same instance unless you explicitly ask for a new instance. Instances are lazily created, meaning nothing is created until you request an instance. TypeScript optional, but attempts to infer types as much as possible.
-
-## Install
-
-```sh
-npm install @smonn/container
-```
-
-```sh
-yarn add @smonn/container
-```
-
-## Usage
-
-Example usage. See more examples in the test files.
-
-```ts
-import { Container, createToken } from "@smonn/container";
+import { Container, createToken } from "../src/container";
 
 // Interfaces are optional, but can help to ensure you depend on abstractions only.
 interface IGreeter {
@@ -48,10 +29,19 @@ class Shouter implements IShouter {
   }
 }
 
+class Other {
+  ping() {
+    return "pong";
+  }
+}
+
 // Or define token types in a central location to help avoid circular imports.
 const Tokens = {
-  // Token type can also be inferred from the function signature.
+  // Token type can also be inferred from the function signature
   name: createToken("name", String),
+
+  // Or use explicit type and infer name from class
+  other: createToken(Other),
 } as const;
 
 // Group together related classes in a single function to avoid a single
@@ -59,7 +49,10 @@ const Tokens = {
 // the token spec, explicitly declaring the generic type is not required.
 function provideModule(container: Container) {
   // Literal/basic values are allowed
-  container.set(Tokens.name, () => "Joy");
+  container.set(Tokens.name, "Joy");
+  container.set(Tokens.other, new Other());
+
+  // Use factory functions to help resolve dependencies
   container.set(Greeter.token, (c) => new Greeter(c.get(Tokens.name)));
   container.set(Shouter.token, (c) => new Shouter(c.get(Greeter.token)));
 }
@@ -67,7 +60,7 @@ function provideModule(container: Container) {
 const container = new Container();
 container.register(provideModule);
 
-// Here shouter will have the correct type (the Shouter interface)
+// Here shouter will have the correct type (the IShouter interface)
 const shouter = container.get(Shouter.token);
 
 test('returns "HELLO, JOY!"', () => {
@@ -83,4 +76,7 @@ test("always get a new instance", () => {
     container.create(Shouter.token)
   );
 });
-```
+
+test("other will never create a new instance", () => {
+  expect(container.create(Tokens.other)).toBe(container.create(Tokens.other));
+});

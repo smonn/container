@@ -1,4 +1,4 @@
-name: Continuous Deployment
+name: Release
 
 on:
   release:
@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -41,6 +44,3 @@ jobs:
 
       - name: Push updates to repo
         run: git push
-        env:
-          # The secret is passed automatically. Nothing to configure.
-          github-token: ${{ secrets.GITHUB_TOKEN }}

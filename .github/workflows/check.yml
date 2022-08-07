@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: Check
 
 on:
   push:
@@ -9,9 +9,7 @@ on:
       - main
 
 jobs:
-  build:
-    name: Build, lint, and test
-
+  check:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,16 +24,8 @@ jobs:
       - name: Install dependencies
         uses: bahmutov/npm-install@v1
 
-      - name: Lint
-        run: npm run lint && npm run check
-
       - name: Test
-        run: npm run coverage && npm run report
-
-      - name: Upload coverage to Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: npm test
 
       - name: Build
         run: npm run build
