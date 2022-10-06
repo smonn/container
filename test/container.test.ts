@@ -156,7 +156,7 @@ test("throws if no match is found", () => {
   const container = createContainer();
   const unknownToken = createToken("unknown");
   expect(() => container.get(unknownToken)).toThrow(
-    'No factory registered for key "unknown"'
+    'token "unknown" has no factory'
   );
 });
 
