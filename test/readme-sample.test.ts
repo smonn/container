@@ -1,4 +1,5 @@
-import { Container, createToken } from "../src/container";
+import { expect, test } from "vitest";
+import { createContainer, createToken, IContainer } from "../src/index";
 
 // Interfaces are optional, but can help to ensure you depend on abstractions only.
 interface IGreeter {
@@ -41,13 +42,13 @@ const Tokens = {
   name: createToken("name", String),
 
   // Or use explicit type and infer name from class
-  other: createToken(Other),
+  other: createToken("other", Other),
 } as const;
 
 // Group together related classes in a single function to avoid a single
 // massive function defining hundreds of dependencies. Also note that thanks to
 // the token spec, explicitly declaring the generic type is not required.
-function provideModule(container: Container) {
+function provideModule(container: IContainer) {
   // Literal/basic values are allowed
   container.set(Tokens.name, "Joy");
   container.set(Tokens.other, new Other());
@@ -57,7 +58,7 @@ function provideModule(container: Container) {
   container.set(Shouter.token, (c) => new Shouter(c.get(Greeter.token)));
 }
 
-const container = new Container();
+const container = createContainer();
 container.register(provideModule);
 
 // Here shouter will have the correct type (the IShouter interface)

@@ -1,4 +1,12 @@
-import { Container, createToken } from "../src/container";
+import { expect, test } from "vitest";
+import {
+  createContainer,
+  createToken,
+  IContainer,
+  isToken,
+  Provider,
+  Token,
+} from "../src/index";
 
 interface IFoo {
   send(): void;
@@ -33,22 +41,20 @@ const tokens = {
   asyncFoo: createToken<Promise<IFoo>>("asyncFoo"),
   bar: createToken<IBar>("bar"),
   constant: createToken<string>("constant"),
-  other: createToken(Other),
-  symbol: createToken(Symbol("other"), Other),
-  fallbackName: createToken(123),
-  simple: "simple",
+  other: createToken("other", Other),
+  fallbackName: createToken(Other.name),
+  simple: createToken<number>("simple"),
 } as const;
 
 test("token properties", () => {
   expect(tokens.bar.name).toBe("bar");
-  // Since the createToken did not receive a second parameter,
-  // the type will equal the first parameter.
-  expect(tokens.bar.type).toBe("bar");
+  expect(tokens.bar.type).toBeUndefined();
+  expect(tokens.other.name).toBe("other");
+  expect(tokens.other.type).toBe(Other);
 });
 
-test("create new container", () => {
-  const container = new Container();
-  expect(container).toBeInstanceOf(Container);
+test("create createContainer", () => {
+  const container = createContainer();
   expect(typeof container.clear).toBe("function");
   expect(typeof container.create).toBe("function");
   expect(typeof container.delete).toBe("function");
@@ -57,17 +63,18 @@ test("create new container", () => {
   expect(typeof container.register).toBe("function");
   expect(typeof container.set).toBe("function");
   expect(typeof container.size).toBe("number");
+  expect(isToken(container.token)).toBeTruthy();
 });
 
 test("set factory and get value", () => {
-  const container = new Container();
+  const container = createContainer();
   const constant = "constant";
   container.set(tokens.constant, () => constant);
   expect(container.get(tokens.constant)).toBe(constant);
 });
 
 test("always the same instance", () => {
-  const container = new Container();
+  const container = createContainer();
   const otherToken = createToken<IFoo>("otherFoo");
 
   container.set(tokens.foo, () => new Foo());
@@ -85,25 +92,25 @@ test("always the same instance", () => {
 });
 
 test("always get a new instance", () => {
-  const container = new Container();
+  const container = createContainer();
   container.set(tokens.foo, () => new Foo());
 
   expect(container.get(tokens.foo)).not.toBe(container.create(tokens.foo));
   expect(container.create(tokens.foo)).not.toBe(container.create(tokens.foo));
 });
 
-const provider = (container: Container) => {
+const provider = (container: IContainer) => {
   container.set(tokens.foo, () => new Foo());
 };
 
 test("register via provider", () => {
-  const container = new Container();
+  const container = createContainer();
   container.register(provider);
   expect(container.get(tokens.foo)).toBeInstanceOf(Foo);
 });
 
 test("setting same token will clear previous instance", () => {
-  const container = new Container();
+  const container = createContainer();
 
   container.set(tokens.foo, () => new Foo());
   const firstInstance = container.get(tokens.foo);
@@ -114,7 +121,7 @@ test("setting same token will clear previous instance", () => {
 });
 
 test("a token can also be a string", () => {
-  const container = new Container();
+  const container = createContainer();
   container.set(tokens.simple, 123);
 
   // When using a string token, it's recommended to also explicitly set the
@@ -124,7 +131,7 @@ test("a token can also be a string", () => {
 });
 
 test("configuring dependencies", () => {
-  const container = new Container();
+  const container = createContainer();
   container
     .set(tokens.foo, () => new Foo())
     .set(tokens.bar, (c) => new Bar(c.get(tokens.foo)));
@@ -133,28 +140,42 @@ test("configuring dependencies", () => {
   expect(bar).toBeInstanceOf(Bar);
 });
 
+test("throws if invalid token or provider", () => {
+  const container = createContainer();
+  const invalidToken = "invalid" as unknown as Token;
+  const invalidProvider = "invalid" as unknown as Provider;
+  expect(() => container.create(invalidToken)).toThrow();
+  expect(() => container.delete(invalidToken)).toThrow();
+  expect(() => container.get(invalidToken)).toThrow();
+  expect(() => container.has(invalidToken)).toThrow();
+  expect(() => container.set(invalidToken, 123)).toThrow();
+  expect(() => container.register(invalidProvider)).toThrow();
+});
+
 test("throws if no match is found", () => {
-  const container = new Container();
+  const container = createContainer();
   const unknownToken = createToken("unknown");
-  expect(() => container.get(unknownToken)).toThrow();
+  expect(() => container.get(unknownToken)).toThrow(
+    'No factory registered for key "unknown"'
+  );
 });
 
 test("async factory is allowed", async () => {
-  const container = new Container();
+  const container = createContainer();
   container.set(tokens.asyncFoo, async () => new Foo());
   const foo = await container.get(tokens.asyncFoo);
   expect(foo).toBeInstanceOf(Foo);
 });
 
 test("verify if a factory has been registered", () => {
-  const container = new Container();
+  const container = createContainer();
   expect(container.has(tokens.foo)).toBe(false);
   container.set(tokens.foo, () => new Foo());
   expect(container.has(tokens.foo)).toBe(true);
 });
 
 test("delete factory", () => {
-  const container = new Container();
+  const container = createContainer();
   container.set(tokens.foo, () => new Foo());
   expect(container.has(tokens.foo)).toBe(true);
   container.delete(tokens.foo);
@@ -162,7 +183,7 @@ test("delete factory", () => {
 });
 
 test("clear all factories and instances", () => {
-  const container = new Container();
+  const container = createContainer();
   container.set(tokens.foo, () => new Foo());
   container.set(tokens.bar, (c) => new Bar(c.get(tokens.foo)));
   expect(container.has(tokens.foo)).toBe(true);

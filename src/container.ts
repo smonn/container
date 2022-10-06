@@ -1,137 +1,15 @@
-/**
- * A factory for return a value of `T` type. Does not need to be an instance of
- * a class, can be primitive values too.
- */
-export type Factory<T = unknown> = T | ((container: Container) => T);
+import { assertToken, createToken, Token } from "./token";
 
-/**
- * A provider can be used to register one or more factories.
- */
-export type Provider = (container: Container) => void;
-
-/**
- * Used to identify the type of a factory.
- */
-export interface Token<T = unknown> {
+export interface IContainer {
   /**
-   * Name of the token.
+   * Containers own token.
    */
-  name: string | symbol;
-
-  /**
-   * Type mapping for TypeScript to help with type inference.
-   * @ignore
-   * @private
-   */
-  type: T;
-}
-
-/**
- * Private implementation of the `Token` interface.
- * @private
- * @ignore
- */
-class TokenImpl<T = unknown> implements Token<T> {
-  #name: string | symbol;
-  #type: T;
-
-  constructor(name: string | symbol, type?: T) {
-    this.#name = name;
-    this.#type = type as T;
-  }
-
-  get name() {
-    return this.#name;
-  }
-
-  get type() {
-    return this.#type;
-  }
-}
-
-/**
- * Helper type to match any custom class.
- * @private
- * @ignore
- */
-type Class<T> = new (...args: unknown[]) => T;
-
-/**
- * Helper type to unwrap token type
- * @private
- * @ignore
- */
-type TokenType<C> = C extends StringConstructor
-  ? string
-  : C extends NumberConstructor
-  ? number
-  : C extends BooleanConstructor
-  ? boolean
-  : C extends ArrayConstructor
-  ? unknown[]
-  : C extends BigIntConstructor
-  ? bigint
-  : C extends SymbolConstructor
-  ? symbol
-  : C extends null
-  ? null
-  : C extends undefined
-  ? undefined
-  : C extends Class<infer T>
-  ? T
-  : C;
-
-/**
- * Helper function to create a token.
- * @generic Type The type of the token, can be inferred from the `type` param.
- * @param name Name of the token.
- * @param type Optional type of the token.
- */
-export function createToken<
-  Type extends
-    | unknown
-    | Class<unknown>
-    | BigIntConstructor
-    | SymbolConstructor
-    | null
-    | undefined
->(name: string | symbol | Type, type?: Type): Token<TokenType<Type>> {
-  return new TokenImpl<TokenType<Type>>(
-    typeof name === "string"
-      ? name
-      : typeof name === "symbol"
-      ? name
-      : typeof name === "function" && "name" in (name as Class<unknown>)
-      ? (name as Class<unknown>).name
-      : String(name),
-    (type ?? name) as unknown as TokenType<Type>
-  );
-}
-
-/**
- * Alias for `createToken`
- * @see createToken
- */
-export const t = createToken;
-
-/**
- * The container class.
- */
-export class Container {
-  /**
-   * Token for the container itself.
-   */
-  static token = t(Symbol("@smonn/container"), this);
-
-  #factories = new Map<string | symbol | Token, Factory>();
-  #instances = new Map<string | symbol | Token, unknown>();
+  readonly token: Token<IContainer>;
 
   /**
    * Get the number of factories registered.
    */
-  get size() {
-    return this.#factories.size;
-  }
+  readonly size: number;
 
   /**
    * Set a factory for a key.
@@ -139,33 +17,21 @@ export class Container {
    * @param factory Factory function that returns a value.
    * @returns Returns the container instance.
    */
-  set<T, F extends T>(
-    token: string | symbol | Token<T>,
-    factory: Factory<F>
-  ): this {
-    this.#instances.delete(token);
-    this.#factories.set(token, factory);
-    return this;
-  }
+  set<T, F extends T>(token: Token<T>, factory: Factory<F>): IContainer;
 
   /**
    * Convenience method to register one or more factories.
    * @param provider Provider function to register one or more factories.
    * @returns Returns the container instance.
    */
-  register(provider: Provider): this {
-    provider(this);
-    return this;
-  }
+  register(provider: Provider): IContainer;
 
   /**
-   * Verifies if a factory has been registered for a given key.
+   * Delete a factory for a key. Also deletes the instance if it exists.
    * @param token Unique identifier for the instance.
-   * @returns True if a factory has been registered, false otherwise.
+   * @returns True if a factory was deleted, false otherwise.
    */
-  has<T>(token: string | symbol | Token<T>): boolean {
-    return this.#factories.has(token);
-  }
+  delete<T>(token: Token<T>): boolean;
 
   /**
    * Get an instance of a key. Always returns the same instance.
@@ -173,49 +39,99 @@ export class Container {
    * @param token Unique identifier for the instance.
    * @returns Returns the same instance.
    */
-  get<T>(token: string | symbol | Token<T>): T {
-    if (this.#instances.has(token)) {
-      return this.#instances.get(token) as T;
-    }
-
-    const instance = this.create(token);
-    this.#instances.set(token, instance);
-    return instance;
-  }
+  get<T>(token: Token<T>): T;
 
   /**
    * Get a instance of a key. Always returns a new instance.
    * @param token Unique identifier for the instance.
    * @returns Returns a new instance.
    */
-  create<T>(token: string | symbol | Token<T>): T {
-    const factory = this.#factories.get(token);
-
-    if (!factory) {
-      throw new Error(`No factory registered for key ${String(token)}`);
-    }
-
-    if (typeof factory !== "function") return factory as T;
-
-    const instance = factory(this);
-    return instance as T;
-  }
+  create<T>(token: Token<T>): T;
 
   /**
-   * Delete a factory for a key. Also deletes the instance if it exists.
+   * Verifies if a factory has been registered for a given key.
    * @param token Unique identifier for the instance.
-   * @returns True if a factory was deleted, false otherwise.
+   * @returns True if a factory has been registered, false otherwise.
    */
-  delete<T>(token: string | symbol | Token<T>): boolean {
-    this.#instances.delete(token);
-    return this.#factories.delete(token);
-  }
+  has<T>(token: Token<T>): boolean;
 
   /**
    * Clear all factories and instances.
    */
-  clear(): void {
-    this.#instances.clear();
-    this.#factories.clear();
-  }
+  clear(): void;
+}
+
+/**
+ * A factory for return a value of `T` type. Does not need to be an instance of
+ * a class, can be primitive values too.
+ */
+export type Factory<T = unknown> = T | ((container: IContainer) => T);
+
+/**
+ * A provider can be used to register one or more factories.
+ */
+export type Provider = (container: IContainer) => void;
+
+/**
+ * The container class.
+ */
+export function createContainer(): IContainer {
+  const factories = new Map<Token, Factory>();
+  const instances = new Map<Token, unknown>();
+
+  const container: IContainer = Object.freeze({
+    token: createToken<IContainer>("@smonn/container"),
+    get size() {
+      return factories.size;
+    },
+    set<T, F extends T>(token: Token<T>, factory: Factory<F>) {
+      assertToken(token);
+      instances.delete(token);
+      factories.set(token, factory);
+      return container;
+    },
+    register(provider: Provider): IContainer {
+      if (typeof provider !== "function")
+        throw new TypeError('"provider" must be a function');
+      provider(container);
+      return container;
+    },
+    has<T>(token: Token<T>): boolean {
+      assertToken(token);
+      return factories.has(token);
+    },
+    get<T>(token: Token<T>): T {
+      assertToken(token);
+      if (instances.has(token)) {
+        return instances.get(token) as T;
+      }
+
+      const instance = container.create(token);
+      instances.set(token, instance);
+      return instance;
+    },
+    create<T>(token: Token<T>): T {
+      assertToken(token);
+      const factory = factories.get(token);
+
+      if (!factory) {
+        throw new Error(`token "${token.name}" has no factory`);
+      }
+
+      if (typeof factory !== "function") return factory as T;
+
+      const instance = factory(container);
+      return instance as T;
+    },
+    delete<T>(token: Token<T>): boolean {
+      assertToken(token);
+      return factories.delete(token) || instances.delete(token);
+    },
+    clear(): void {
+      instances.clear();
+      factories.clear();
+    },
+  });
+
+  return container;
 }
